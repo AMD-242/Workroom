@@ -1,0 +1,138 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  image         String?
+  password      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ownedWorkspaces Workspace[]
+  memberships     WorkspaceMember[]
+  uploadedFiles   DriveFile[]
+  sentMessages    Message[]
+  aiInteractions  AiInteraction[]
+  refreshTokens   RefreshToken[]
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner       User              @relation(fields: ownerId, references: id)
+  members     WorkspaceMember[]
+  channels    Channel[]
+  files       DriveFile[]
+  emails      Email[]
+  aiInteractions AiInteraction[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        Role     @default(MEMBER)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: userId, references: id)
+  workspace Workspace @relation(fields: workspaceId, references: id)
+
+  @@unique([userId, workspaceId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  name        String
+  workspaceId String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace    @relation(fields: workspaceId, references: id)
+  messages  Message[]
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String
+  channelId  String
+  senderId   String
+  createdAt  DateTime @default(now())
+
+  channel Channel @relation(fields: channelId, references: id)
+  sender  User    @relation(fields: senderId, references: id)
+}
+
+model DriveFile {
+  id          String   @id @default(cuid())
+  name        String
+  size        Int
+  mimeType    String
+  path        String
+  workspaceId String
+  parentId    String?
+  uploadedById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace  Workspace @relation(fields: workspaceId, references: id)
+  uploadedBy User      @relation(fields: uploadedById, references: id)
+}
+
+model Email {
+  id          String   @id @default(cuid())
+  subject     String
+  body        String
+  fromEmail   String
+  toEmails    String[]
+  workspaceId String
+  sentAt      DateTime @default(now())
+
+  workspace Workspace @relation(fields: workspaceId, references: id)
+}
+
+model AiInteraction {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  prompt      String
+  response    String
+  type        AiType   @default(CHAT)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: userId, references: id)
+  workspace Workspace @relation(fields: workspaceId, references: id)
+}
+
+enum AiType {
+  CHAT
+  DRIVE
+  EMAIL
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: userId, references: id)
+}
